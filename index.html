@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFM Project Menu</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 30px; }
+        .btn {
+            display: block;
+            width: 200px;
+            padding: 15px;
+            margin: 10px auto;
+            text-decoration: none;
+            color: white;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .btn:hover { transform: scale(1.05); }
+        .btn-dashboard { background-color: #007bff; } /* สีน้ำเงิน */
+        .btn-simulation { background-color: #28a745; } /* สีเขียว */
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>RFM Analytics Project</h1>
+        <p>กรุณาเลือกหัวข้อที่ต้องการเข้าชม:</p>
+
+        <a href="rfm-project/dashboard.html" class="btn btn-dashboard">
+            📊 ไปที่ RFM Dashboard
+        </a>
+
+        <a href="rfm-project/simulation.html" class="btn btn-simulation">
+            🎲 ไปที่ RFM Simulation
+        </a>
+    </div>
+
+</body>
+</html>
