@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFM Analytics Dashboard</title>
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root { --bg: #f3f4f6; --primary: #2563eb; --shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        body { font-family: 'Kanit', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1f2937; }
+        
+        /* Header & Layout */
+        header { 
+            max-width: 1400px; margin: 0 auto 20px; text-align: center; 
+            background: white; padding: 25px; border-radius: 16px; 
+            box-shadow: var(--shadow); border: 1px solid #e5e7eb; position: relative; overflow: hidden; 
+        }
+        header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+        
+        /* --- เพิ่มปุ่ม Simulation ตรงนี้ --- */
+        .sim-btn {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: white;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow);
+            z-index: 10;
+        }
+        .sim-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+        }
+        @media (max-width: 768px) {
+            .sim-btn { position: static; margin-top: 15px; display: inline-flex; }
+        }
+        /* ------------------------------- */
+
+        .controls-card { max-width: 1400px; margin: 0 auto 20px; background: white; padding: 20px; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid #e5e7eb; }
+        
+        /* Tabs */
+        .tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { padding: 10px 24px; border-radius: 8px; cursor: pointer; border: 1px solid #e5e7eb; background: #f9fafb; font-weight: 500; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .input-group { display: none; flex-direction: column; align-items: center; gap: 15px; }
+        .input-group.active { display: flex; }
+        
+        .url-input { width: 100%; max-width: 600px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-family: 'Kanit'; font-size: 1rem; }
+        .btn-primary { background: var(--primary); color: white; padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .btn-primary:hover { background: #1d4ed8; }
+
+        /* Filter Bar */
+        .filter-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+        .filter-select { padding: 8px 12px; border-radius: 6px; border: 1px solid #d1d5db; font-family: 'Kanit'; min-width: 200px; background: #f9fafb; }
+
+        /* Charts */
+        .charts-container { max-width: 1400px; margin: 0 auto 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .chart-full { grid-column: 1 / -1; }
+        .chart-card { background: white; border-radius: 16px; padding: 20px; box-shadow: var(--shadow); height: 400px; position: relative; border: 1px solid #e5e7eb; }
+
+        /* Dashboard Cards */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; transition: transform 0.2s; border: 1px solid #e5e7eb; }
+        .card:hover { transform: translateY(-3px); }
+        .card-header { padding: 12px 15px; color: white; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+        .card-body { padding: 15px; }
+
+        .metric-block { display: flex; flex-direction: column; }
+        .metric-block.right { align-items: flex-end; text-align: right; }
+        .metric-val { font-size: 1.2rem; font-weight: 600; color: #111827; }
+        .metric-label { font-size: 0.8rem; color: #6b7280; }
+        .main-metrics { display: flex; justify-content: space-between; margin: 15px 0; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        
+        /* Growth Badges */
+        .growth-badge { font-size: 0.75rem; font-weight: 500; display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
+        .growth-up { color: #059669; background: #d1fae5; }
+        .growth-down { color: #dc2626; background: #fee2e2; }
+        .growth-neutral { color: #6b7280; background: #f3f4f6; }
+        
+        .rfm-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; text-align: center; font-size: 0.8rem; }
+        .rfm-box { background: #f9fafb; padding: 8px; border-radius: 6px; }
+
+        /* Loading */
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2563eb; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Dynamic Colors */
+        .bg-seq-1 { background: #10b981; } .bg-seq-2 { background: #34d399; } .bg-seq-3 { background: #2dd4bf; }
+        .bg-seq-4 { background: #06b6d4; } .bg-seq-5 { background: #38bdf8; } .bg-seq-6 { background: #60a5fa; }
+        .bg-seq-7 { background: #818cf8; } .bg-seq-8 { background: #a78bfa; } .bg-seq-9 { background: #c084fc; }
+        .bg-seq-10 { background: #e879f9; } .bg-seq-11 { background: #fb7185; } .bg-seq-12 { background: #f472b6; } .bg-seq-13 { background: #9ca3af; }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay"><div class="spinner"></div><div>กำลังโหลดข้อมูล...</div></div>
+
+    <header>
+        <h1><i class="fas fa-chart-line"></i> RFM Dashboard (Cloud Run Ready)</h1>
+        <p style="color:#6b7280;">เชื่อมต่อข้อมูลผ่าน CSV หรือ Cloud Run API (Databricks/BigQuery)</p>
+        
+        <!-- เพิ่มปุ่มนี้เพื่อลิ้งค์ไปหน้า Simulation -->
+        <a href="simulation.html" class="sim-btn">
+            <i class="fas fa-flask"></i> RFM Simulation
+        </a>
+    </header>
+
+    <div class="controls-card">
+        <div class="tabs">
+            <div class="tab-btn active" onclick="switchTab('csv')"><i class="fas fa-file-csv"></i> Upload CSV</div>
+            <div class="tab-btn" onclick="switchTab('api')"><i class="fas fa-cloud"></i> Connect API</div>
+        </div>
+
+        <!-- CSV Input -->
+        <div id="csvInput" class="input-group active">
+            <input type="file" id="csvFile" accept=".csv" style="display:none;" onchange="handleCSV(this)">
+            <button class="btn-primary" onclick="document.getElementById('csvFile').click()">
+                <i class="fas fa-upload"></i> เลือกไฟล์ CSV
+            </button>
+        </div>
+
+        <!-- API Input -->
+        <div id="apiInput" class="input-group">
+            <label style="font-size:0.9rem; color:#6b7280;">ใส่ Cloud Run URL (ต้องลงท้ายด้วย /api/rfm-data)</label>
+            <input type="text" id="apiUrl" class="url-input" placeholder="https://rfm-api-service-xyz.a.run.app/api/rfm-data">
+            <button class="btn-primary" onclick="fetchAPIData()"><i class="fas fa-sync"></i> ดึงข้อมูล API</button>
+        </div>
+
+        <div id="statusMsg" style="text-align:center; margin-top:10px; color:#059669; font-size:0.9rem;"></div>
+
+        <!-- Filters -->
+        <div id="filterSection" class="filter-bar" style="display:none;">
+            <div>
+                <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:5px;">งวดข้อมูล (Most_Round)</label>
+                <select id="roundFilter" class="filter-select" onchange="applyFilters()"></select>
+            </div>
+            <div>
+                <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:5px;">กลุ่มลูกค้า (Segment)</label>
+                <select id="segmentFilter" class="filter-select" onchange="applyFilters()"></select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-container">
+        <div class="chart-card">
+            <h3 style="text-align:center; font-size:1rem; margin-bottom:10px;">User Distribution (Log Scale)</h3>
+            <div style="height:340px;"><canvas id="userChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <h3 style="text-align:center; font-size:1rem; margin-bottom:10px;">Revenue Share</h3>
+            <div style="height:340px;"><canvas id="revenueChart"></canvas></div>
+        </div>
+        <div class="chart-card chart-full">
+            <h3 style="text-align:center; font-size:1rem; margin-bottom:10px;">RFM Matrix</h3>
+            <div style="height:340px;"><canvas id="bubbleChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Cards -->
+    <div id="dashboard" class="dashboard-grid">
+        <div style="grid-column:1/-1; text-align:center; padding:50px; color:#9ca3af;">
+            <i class="fas fa-cloud-download-alt" style="font-size:3rem; margin-bottom:15px;"></i>
+            <h3>รอข้อมูล...</h3>
+        </div>
+    </div>
+
+    <script>
+        let allDataRaw = [], allRounds = [];
+
+        function switchTab(mode) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.input-group').forEach(g => g.classList.remove('active'));
+            if(mode === 'csv') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('csvInput').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('apiInput').classList.add('active');
+            }
+        }
+
+        function handleCSV(input) {
+            const file = input.files[0];
+            if(!file) return;
+            setLoading(true);
+            Papa.parse(file, { header: true, dynamicTyping: false, skipEmptyLines: true,
+                complete: res => { processData(res.data); setLoading(false); setStatus(`โหลด CSV: ${res.data.length} รายการ`); },
+                error: err => { alert(err.message); setLoading(false); }
+            });
+        }
+
+        async function fetchAPIData() {
+            const url = document.getElementById('apiUrl').value.trim();
+            if(!url) return alert("กรุณาใส่ URL API");
+            setLoading(true);
+            try {
+                const res = await fetch(url);
+                if(!res.ok) throw new Error("API Error: " + res.status);
+                const json = await res.json();
+                const rows = Array.isArray(json) ? json : (json.data || []);
+                if(!rows.length) throw new Error("ไม่พบข้อมูล");
+                processData(rows);
+                setStatus(`ดึง API สำเร็จ: ${rows.length} รายการ`);
+            } catch (e) { alert("เชื่อมต่อไม่ได้: " + e.message + "\n(ตรวจสอบ CORS หรือ URL)"); } 
+            finally { setLoading(false); }
+        }
+
+        function processData(rows) {
+            allDataRaw = rows.filter(d => d.segment).map(d => ({
+                ...d,
+                Count_User_Segment: cleanNum(d.Count_User_Segment),
+                ValueSpend: cleanNum(d.ValueSpend),
+                Avg_R: cleanNum(d.Avg_R), Median_F: cleanNum(d.Median_F), Avg_M: cleanNum(d.Avg_M),
+                Most_Round: d.Most_Round ? d.Most_Round.trim() : 'Unknown'
+            }));
+            setupFilters(allDataRaw);
+            applyFilters();
+        }
+
+        function cleanNum(v) {
+            if(typeof v === 'number') return v;
+            if(typeof v === 'string') return parseFloat(v.replace(/,/g, '')) || 0;
+            return 0;
+        }
+
+        function setupFilters(data) {
+            const rSel = document.getElementById('roundFilter');
+            const sSel = document.getElementById('segmentFilter');
+            
+            allRounds = [...new Set(data.map(d => d.Most_Round))].sort().reverse();
+            rSel.innerHTML = `<option value="all">รวมทุกงวด</option>`;
+            allRounds.forEach((r, i) => rSel.innerHTML += `<option value="${r}">${r}${i===0?" (ล่าสุด)":""}</option>`);
+            if(allRounds.length) rSel.value = allRounds[0];
+
+            const segs = [...new Set(data.map(d => d.segment))].sort((a,b)=>(parseInt(a)||99)-(parseInt(b)||99));
+            sSel.innerHTML = `<option value="all">ทั้งหมด</option>`;
+            segs.forEach(s => sSel.innerHTML += `<option value="${s}">${s}</option>`);
+            
+            document.getElementById('filterSection').style.display = 'flex';
+        }
+
+        function applyFilters() {
+            const rVal = document.getElementById('roundFilter').value;
+            const sVal = document.getElementById('segmentFilter').value;
+            
+            let current = allDataRaw;
+            if(rVal !== 'all') current = current.filter(d => d.Most_Round === rVal);
+            if(sVal !== 'all') current = current.filter(d => d.segment === sVal);
+
+            let prevMap = {};
+            let showGrowth = false;
+            if(rVal !== 'all') {
+                const idx = allRounds.indexOf(rVal);
+                if(idx !== -1 && idx+1 < allRounds.length) {
+                    const prevData = allDataRaw.filter(d => d.Most_Round === allRounds[idx+1]);
+                    prevData.forEach(d => prevMap[d.segment] = d);
+                    showGrowth = true;
+                }
+            }
+
+            renderCharts(current);
+            renderCards(current, prevMap, showGrowth);
+        }
+
+        function renderCards(data, prevMap, showGrowth) {
+            const container = document.getElementById('dashboard');
+            container.innerHTML = '';
+            const sorted = [...data].sort((a,b)=>(parseInt(a.segment)||99)-(parseInt(b.segment)||99));
+            
+            sorted.forEach(d => {
+                let uG = '', sG = '';
+                if(showGrowth && prevMap[d.segment]) {
+                    uG = calcGrowth(d.Count_User_Segment, prevMap[d.segment].Count_User_Segment);
+                    sG = calcGrowth(d.ValueSpend, prevMap[d.segment].ValueSpend);
+                }
+                const cls = `bg-seq-${Math.min(parseInt(d.segment)||13, 13)}`;
+                
+                container.innerHTML += `
+                <div class="card">
+                    <div class="card-header ${cls}">
+                        <span>${d.segment}</span><span style="opacity:0.8; font-size:0.8rem;">${d.Most_Round}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="main-metrics">
+                            <div class="metric-block">
+                                <span class="metric-label">Users</span>
+                                <span class="metric-val">${d.Count_User_Segment.toLocaleString()}</span>
+                                ${uG}
+                            </div>
+                            <div class="metric-block right">
+                                <span class="metric-label">Revenue</span>
+                                <span class="metric-val">${formatBaht(d.ValueSpend)}</span>
+                                ${sG}
+                            </div>
+                        </div>
+                        <div class="rfm-grid">
+                            <div class="rfm-box">R: ${d.Avg_R}</div>
+                            <div class="rfm-box">F: ${d.Median_F}</div>
+                            <div class="rfm-box">M: ${d.Avg_M.toLocaleString()}</div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function calcGrowth(curr, prev) {
+            if(!prev) return `<span class="growth-badge growth-neutral">-</span>`;
+            const diff = curr - prev;
+            const pct = (diff/prev)*100;
+            const cls = diff > 0 ? 'growth-up' : (diff < 0 ? 'growth-down' : 'growth-neutral');
+            const icon = diff > 0 ? 'fa-arrow-up' : (diff < 0 ? 'fa-arrow-down' : 'fa-minus');
+            return `<span class="growth-badge ${cls}"><i class="fas ${icon}"></i> ${Math.abs(pct).toFixed(1)}%</span>`;
+        }
+
+        let uChart, rChart, bChart;
+        function renderCharts(data) {
+            const agg = {};
+            data.forEach(d => {
+                if(!agg[d.segment]) agg[d.segment] = { segment: d.segment, users:0, spend:0, R:0, F:0, count:0 };
+                agg[d.segment].users += d.Count_User_Segment;
+                agg[d.segment].spend += d.ValueSpend;
+                agg[d.segment].R += d.Avg_R; agg[d.segment].F += d.Median_F; agg[d.segment].count++;
+            });
+            const final = Object.values(agg).map(d => ({...d, R:d.R/d.count, F:d.F/d.count})).sort((a,b)=>(parseInt(a.segment)||99)-(parseInt(b.segment)||99));
+            
+            const labels = final.map(d => d.segment);
+            const users = final.map(d => d.users<=0?0.1:d.users);
+            const spends = final.map(d => d.spend);
+            const colors = final.map(d => getSegColor(d.segment));
+
+            const ctxU = document.getElementById('userChart').getContext('2d');
+            if(uChart) uChart.destroy();
+            uChart = new Chart(ctxU, {
+                type: 'bar', data: { labels, datasets: [{ data: users, backgroundColor: colors, borderRadius:4 }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend:false }, scales: { x: { type: 'logarithmic', min:1, grid:{display:false} }, y: { grid:{display:false} } } }
+            });
+
+            const ctxR = document.getElementById('revenueChart').getContext('2d');
+            if(rChart) rChart.destroy();
+            rChart = new Chart(ctxR, {
+                type: 'doughnut', data: { labels, datasets: [{ data: spends, backgroundColor: colors, borderWidth:1 }] },
+                options: { maintainAspectRatio: false, plugins: { legend: {position:'right', labels:{boxWidth:10}} } }
+            });
+
+            const ctxB = document.getElementById('bubbleChart').getContext('2d');
+            if(bChart) bChart.destroy();
+            const maxS = Math.max(...spends)||1;
+            const bData = final.map((d,i) => ({ x:d.R, y:d.F, r: Math.sqrt(d.spend/maxS)*30+5, _seg:d.segment }));
+            bChart = new Chart(ctxB, {
+                type: 'bubble', data: { datasets: bData.map((b,i)=>({ label:b._seg, data:[b], backgroundColor:colors[i], borderColor:colors[i] })) },
+                options: { maintainAspectRatio: false, plugins: { legend:false, tooltip:{callbacks:{label: c=>`${c.raw._seg}: R=${c.raw.x.toFixed(1)}, F=${c.raw.y.toFixed(1)}`}} }, scales: { x: {title:{display:true, text:'Recency'}}, y: {title:{display:true, text:'Frequency'}} } }
+            });
+        }
+
+        function formatBaht(n) { return new Intl.NumberFormat('th-TH', {style:'currency', currency:'THB', maximumFractionDigits:0}).format(n); }
+        function getSegColor(n) { const i = (parseInt(n)||13)-1; const c = ['#10b981','#34d399','#2dd4bf','#06b6d4','#38bdf8','#60a5fa','#818cf8','#a78bfa','#c084fc','#e879f9','#fb7185','#f472b6','#9ca3af']; return c[i%13]; }
+        function setLoading(s) { document.getElementById('loadingOverlay').style.display = s ? 'flex' : 'none'; }
+        function setStatus(m) { document.getElementById('statusMsg').innerText = m; }
+    </script>
+</body>
+</html>
